@@ -59,7 +59,7 @@ resource "azurerm_linux_virtual_machine" "vm" {
   resource_group_name       = azurerm_resource_group.rg.name
   location                  = azurerm_resource_group.rg.location
   size                      = "Standard_B1s"
-  admin_username            = "guarinve"
+  admin_username            = var.admin_username
   admin_password            = var.admin_password
   disable_password_authentication = false
 
@@ -105,6 +105,11 @@ resource "azurerm_network_interface_security_group_association" "nsg_assoc" {
 
 output "public_ip_address" {
   value = azurerm_public_ip.publicip.ip_address
+}
+
+variable "admin_username" {
+  description = "Administrator username for the virtual machine"
+  type        = string
 }
 
 variable "admin_password" {
