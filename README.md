@@ -1,62 +1,62 @@
-# VM Linux en Azure con Terraform
+# Linux VM on Azure with Terraform
 
-Este proyecto crea una máquina virtual Ubuntu en Azure y todos los recursos de red que necesita. Terraform describe el estado deseado y usa el proveedor de Azure para crear, consultar y eliminar esos recursos.
+This project creates an Ubuntu virtual machine on Azure along with all the network resources it needs. Terraform describes the desired state and uses the Azure provider to create, query, and delete those resources.
 
-## Recursos creados
+## Resources created
 
-- Un grupo de recursos en `canadacentral`.
-- Una red virtual y una subred.
-- Una IP pública estática.
-- Una interfaz de red conectada a la subred y a la IP pública.
-- Una máquina virtual Ubuntu 22.04 (`Standard_B1s`).
-- Un grupo de seguridad de red con acceso SSH por el puerto 22.
+- A resource group in `canadacentral`.
+- A virtual network and a subnet.
+- A static public IP address.
+- A network interface connected to the subnet and the public IP.
+- An Ubuntu 22.04 virtual machine (`Standard_B1s`).
+- A network security group allowing SSH access on port 22.
 
-La regla SSH actual permite conexiones desde cualquier dirección IP. Para un entorno real, limita `source_address_prefix` en `main.tf` a tu IP pública con formato CIDR, por ejemplo `203.0.113.10/32`.
+The current SSH rule allows connections from any IP address. For a real environment, restrict `source_address_prefix` in `main.tf` to your public IP in CIDR format, for example `203.0.113.10/32`.
 
-## Requisitos
+## Requirements
 
-- Una suscripción activa de Azure con permisos para crear recursos.
-- Terraform 1.1.0 o posterior.
-- Azure CLI, para iniciar sesión desde la terminal.
+- An active Azure subscription with permissions to create resources.
+- Terraform 1.1.0 or later.
+- Azure CLI, to sign in from the terminal.
 
-Inicia sesión y, si tienes más de una suscripción, selecciona la que usarás:
+Sign in and, if you have more than one subscription, select the one you will use:
 
 ```bash
 az login
-az account set --subscription "ID_O_NOMBRE_DE_SUSCRIPCION"
+az account set --subscription "SUBSCRIPTION_ID_OR_NAME"
 ```
 
-## Archivos principales
+## Main files
 
-- `main.tf`: proveedor, recursos, variables de usuario y contraseña, y salida de la IP pública.
-- `.terraform.lock.hcl`: versiones verificadas del proveedor; se conserva en Git.
-- `terraform.tfvars.example`: ejemplo de configuración de variables, sin una contraseña real.
-- `terraform.tfvars`: valores locales; está excluido de Git.
-- `.terraform/`: plugins descargados por Terraform; se genera localmente y está excluido de Git.
-- `terraform.tfstate`: estado local de los recursos administrados; está excluido de Git.
+- `main.tf`: provider, resources, username and password variables, and the public IP output.
+- `.terraform.lock.hcl`: verified provider versions; keep it in Git.
+- `terraform.tfvars.example`: example variable configuration, without a real password.
+- `terraform.tfvars`: local values; excluded from Git.
+- `.terraform/`: plugins downloaded by Terraform; generated locally and excluded from Git.
+- `terraform.tfstate`: local state of the managed resources; excluded from Git.
 
 ## Variables
 
-`main.tf` declara `admin_username` para el nombre de usuario administrador y `admin_password` para su contraseña. La contraseña está marcada como `sensitive = true`.
+`main.tf` declares `admin_username` for the administrator username and `admin_password` for its password. The password is marked as `sensitive = true`.
 
-Para definirla localmente, copia el ejemplo y reemplaza su valor por una contraseña segura que cumpla los requisitos de Azure:
+To set it locally, copy the example file and replace its value with a strong password that meets Azure's requirements:
 
 ```bash
 cp terraform.tfvars.example terraform.tfvars
 ```
 
-Edita `terraform.tfvars`:
+Edit `terraform.tfvars`:
 
 ```hcl
 admin_username = "admin_user"
-admin_password = "REEMPLAZA_POR_UNA_CONTRASENA_SEGURA"
+admin_password = "REPLACE_WITH_A_STRONG_PASSWORD"
 ```
 
-Terraform también puede pedir la variable al ejecutar `plan` o `apply` si no la encuentra. `sensitive = true` oculta el valor en parte de la salida de Terraform, pero no lo cifra dentro del estado. Protege `terraform.tfstate` y nunca publiques `terraform.tfvars` ni compartas la contraseña.
+Terraform can also prompt for the variable when running `plan` or `apply` if it can't find it. `sensitive = true` hides the value in parts of Terraform's output, but it does not encrypt it inside the state. Protect `terraform.tfstate` and never publish `terraform.tfvars` or share the password.
 
-## Inicializar, revisar y crear
+## Initialize, review, and create
 
-Ejecuta los siguientes comandos desde la carpeta del proyecto:
+Run the following commands from the project folder:
 
 ```bash
 terraform init
@@ -66,27 +66,26 @@ terraform plan
 terraform apply
 ```
 
-`init` descarga el proveedor y prepara el directorio de trabajo. `fmt` aplica el formato estándar de Terraform. `validate` comprueba la configuración. `plan` muestra los cambios propuestos sin aplicarlos. `apply` crea o actualiza los recursos, y pide confirmación antes de continuar.
+`init` downloads the provider and prepares the working directory. `fmt` applies Terraform's standard formatting. `validate` checks the configuration. `plan` shows the proposed changes without applying them. `apply` creates or updates the resources, and asks for confirmation before continuing.
 
-Al terminar, consulta la IP pública y conéctate por SSH:
+When it finishes, get the public IP and connect via SSH:
 
 ```bash
 terraform output -raw public_ip_address
-ssh admin_user@IP_PUBLICA
+ssh admin_user@PUBLIC_IP
 ```
 
-Usa la contraseña configurada en `terraform.tfvars`. En la primera conexión, SSH puede pedir confirmar la huella de la máquina remota; verifica que corresponde a tu VM antes de aceptarla.
+Use the password configured in `terraform.tfvars`. On the first connection, SSH may ask you to confirm the remote machine's fingerprint; verify that it matches your VM before accepting it.
 
-## Cambios y destrucción
+## Changes and destruction
 
-Después de modificar `main.tf`, vuelve a ejecutar `terraform plan` para revisar el efecto antes de aplicar con `terraform apply`.
+After modifying `main.tf`, run `terraform plan` again to review the effect before applying it with `terraform apply`.
 
-Para eliminar los recursos administrados por este proyecto:
+To delete the resources managed by this project:
 
 ```bash
 terraform plan -destroy
 terraform destroy
 ```
 
-Terraform elimina primero los recursos dependientes, como la VM y su interfaz de red, y deja para el final el grupo de recursos. Azure puede tardar un tiempo en completar la eliminación. No borres ni edites manualmente `terraform.tfstate` mientras Terraform esté trabajando: el estado es el registro que usa para relacionar la configuración con los recursos reales.
-
+Terraform first deletes dependent resources, such as the VM and its network interface, and leaves the resource group for last. Azure may take some time to complete the deletion. Do not manually delete or edit `terraform.tfstate` while Terraform is working: the state is the record it uses to map the configuration to the real resources.
